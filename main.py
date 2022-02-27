@@ -11,16 +11,16 @@ def normalize_signal(signal):
     sig_norm = np.zeros(len(signal))
     for i in range(len(signal)):
         sig_norm[i] = (signal[i] - sig_minval) / (sig_maxval - sig_minval)
-    return sig_norm
+    return [sig_norm, sig_maxval, sig_minval]
 
 def removed_anomalous_indexes(test_signal, anomalous_indexes):
     print(test_signal)
     print(anomalous_indexes)
     for x in sorted(anomalous_indexes, reverse=True):
-        del test_signal[x]
+        test_signal[x] = test_signal[x - 1]
     return test_signal
 
-def calculate_average_step(signal, threshold=5):
+def calculate_average_step(signal, threshold=15):
     """
     Determine the average step by doing a weighted average based on clustering of averages.
     array: our array
@@ -128,12 +128,25 @@ try:
 except IOError:
     print("error")
 test_signal = [x for x in binary_content_data]
-plt.plot(range(len(test_signal)), test_signal)
+# plt.plot(range(len(test_signal)), test_signal)
 
 average_step = calculate_average_step(test_signal)
 anomalous_indexes = detect_anomalous_values(test_signal, average_step)
 
 print(anomalous_indexes)
 test_signal = removed_anomalous_indexes(test_signal, anomalous_indexes)
-plt.plot(range(len(test_signal)), normalize_signal(test_signal))
+[sig_norm, sig_maxval, sig_minval] = normalize_signal(test_signal)
+max_index = test_signal.index(sig_maxval)
+min_index = test_signal.index(sig_minval)
+
+half_period = abs(max_index - min_index)
+if max_index > min_index:
+    final_array = test_signal[min_index - int(half_period / 2): max_index + int(half_period / 2)]
+else:
+    final_array = test_signal[max_index - int(half_period / 2): min_index + int(half_period / 2)]
+
+
+
+
+plt.plot(range(len(final_array)), final_array)
 plt.show()
