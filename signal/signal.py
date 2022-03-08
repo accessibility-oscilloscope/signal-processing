@@ -3,10 +3,12 @@
 generate a binary representation of a test signal.
 """
 
-import math, random
+import math
+import random
+import matplotlib.pyplot as plt
 import numpy as np
 
-SIGNAL_LENGTH: int = 480
+SIGNAL_LENGTH: int = 4000
 SIGNAL_AMPLITUDE: int = 255
 
 
@@ -15,11 +17,13 @@ def f(x: float) -> float:
 
 
 if __name__ == "__main__":
-    signal = r"C:\Users\Alex\Desktop\Accessible Oscilloscope\Signal Processing\test.signal"
+    signal = r"../test.signal"
     fd = open(signal, "wb")
 
     xs = np.linspace(0, SIGNAL_LENGTH - 1, SIGNAL_LENGTH)
     ys = [f(x) for x in xs]
     ys[240] = 255
 
-    fd.write(bytearray([int(y) for y in ys]))
+    ba = bytearray([int(y) for y in ys])
+    print(list(ba))
+    fd.write(ba)

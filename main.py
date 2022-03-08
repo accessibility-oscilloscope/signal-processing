@@ -1,8 +1,7 @@
 import matplotlib.pyplot as plt
+import os
 import numpy as np
-import pandas as pd
-
-test_signal = [4, 5, 6, 7, 6, 5]
+import argparse
 
 
 def normalize_signal(signal):
@@ -13,14 +12,19 @@ def normalize_signal(signal):
         sig_norm[i] = (signal[i] - sig_minval) / (sig_maxval - sig_minval)
     return [sig_norm, sig_maxval, sig_minval]
 
+
+def average(array):
+    return array[0] * 0.45 + array[1] * 0.1 + array[2] * 0.45
+
+
 def removed_anomalous_indexes(test_signal, anomalous_indexes):
-    print(test_signal)
-    print(anomalous_indexes)
-    for x in sorted(anomalous_indexes, reverse=True):
-        test_signal[x] = test_signal[x - 1]
+    sorted_index = sorted(anomalous_indexes, reverse=True)
+    for i in range(1, len(sorted_index) - 1):
+        test_signal[i] = int(average(test_signal[i - 1:i + 2]))
     return test_signal
 
-def calculate_average_step(signal, threshold=15):
+
+def calculate_average_step(signal, threshold=3):
     """
     Determine the average step by doing a weighted average based on clustering of averages.
     array: our array
@@ -69,7 +73,7 @@ def calculate_average_step(signal, threshold=15):
     return sum(biggest_cluster) / len(biggest_cluster)  # return our most common average
 
 
-def detect_anomalous_values(array, regular_step, threshold=25):
+def detect_anomalous_values(array, regular_step, threshold=20):
     """
     Will scan every triad (3 points) in the array to detect anomalies.
     array: the array to iterate over.
@@ -102,51 +106,124 @@ def detect_anomalous_values(array, regular_step, threshold=25):
         # detect if the first point in the triad is bad
         if not first_belonging and second_belonging:
             anomalous_indexes.append(i)
-            print("first point bad")
 
         # detect the last point in the triad is bad
         if first_belonging and not second_belonging:
             anomalous_indexes.append(i + 2)
-            print("last point bad")
 
         # detect the mid point in triad is bad (or everything is bad)
         if not first_belonging and not second_belonging:
             anomalous_indexes.append(i + 1)
-            print("mid point")
             # we won't add here the others because they will be detected by
             # the rest of the triad scans
 
     return sorted(set(anomalous_indexes))  # return unique indexes
 
-try:
-    f = open(r"C:\Users\Alex\Desktop\Accessible Oscilloscope\Signal Processing\test.signal", "rb")
-    while True:
-        binary_content = f.read(-1)
-        if not binary_content:
-            break
-        binary_content_data = binary_content
-except IOError:
-    print("error")
-test_signal = [x for x in binary_content_data]
-# plt.plot(range(len(test_signal)), test_signal)
 
-average_step = calculate_average_step(test_signal)
-anomalous_indexes = detect_anomalous_values(test_signal, average_step)
+def process_data(input_data):
+    test_signal = [x for x in input_data]
 
-print(anomalous_indexes)
-test_signal = removed_anomalous_indexes(test_signal, anomalous_indexes)
-[sig_norm, sig_maxval, sig_minval] = normalize_signal(test_signal)
-max_index = test_signal.index(sig_maxval)
-min_index = test_signal.index(sig_minval)
+    average_step = calculate_average_step(test_signal)
+    anomalous_indexes = detect_anomalous_values(test_signal, average_step)
+    test_signal = removed_anomalous_indexes(test_signal, anomalous_indexes)
 
-half_period = abs(max_index - min_index)
-if max_index > min_index:
-    final_array = test_signal[min_index - int(half_period / 2): max_index + int(half_period / 2)]
-else:
-    final_array = test_signal[max_index - int(half_period / 2): min_index + int(half_period / 2)]
+    # filter_to_single_period(test_signal)
+    return test_signal
 
 
+def filter_to_single_period(test_signal):
+    dt = 1
+    signal = np.array(test_signal) / 255
+    # dt = 0.001
+    # t = np.arange(0, 1, dt)
+    # signal = np.sin(2 * np.pi * 50 * t) + np.sin(2 * np.pi * 120 * t)  # composite signal
+    t = range(len(signal))
+    signal_clean = signal
+    minsignal, maxsignal = signal.min(), signal.max()
+    ## Compute Fourier Transform
+    n = len(t)
+    fhat = np.fft.fft(signal, n)  # computes the fft
+    psd = fhat * np.conj(fhat) / n
+    freq = (1 / (dt * n)) * np.arange(n)  # frequency array
+    idxs_half = np.arange(1, np.floor(n / 2), dtype=np.int32)  # first half index
+    ## Filter out noise
+    threshold = 100
+    psd_idxs = psd > threshold  # array of 0 and 1
+    psd_clean = psd * psd_idxs  # zero out all the unnecessary powers
+    fhat_clean = psd_idxs * fhat  # used to retrieve the signal
+    signal_filtered = np.fft.ifft(fhat_clean)  # inverse fourier transform
+    fig, ax = plt.subplots(4, 1)
+    ax[0].plot(t, signal, color='b', lw=0.5, label='Noisy Signal')
+    ax[0].plot(t, signal_clean, color='r', lw=1, label='Clean Signal')
+    ax[0].set_ylim([minsignal, maxsignal])
+    ax[0].set_xlabel('t axis')
+    ax[0].set_ylabel('Vals')
+    ax[0].legend()
+    ax[1].plot(freq[idxs_half], np.abs(psd[idxs_half]), color='b', lw=0.5, label='PSD noisy')
+    ax[1].set_xlabel('Frequencies in Hz')
+    ax[1].set_ylabel('Amplitude')
+    ax[0].set_ylim([minsignal, maxsignal])
+    ax[1].legend()
+    ax[2].plot(freq[idxs_half], np.abs(psd_clean[idxs_half]), color='r', lw=1, label='PSD clean')
+    ax[2].set_xlabel('Frequencies in Hz')
+    ax[2].set_ylabel('Amplitude')
+    ax[2].set_ylim([min(np.abs(psd_clean[idxs_half])), max(np.abs(psd_clean[idxs_half]))])
+    ax[2].legend()
+    ax[3].plot(t, signal_filtered, color='r', lw=1, label='Clean Signal Retrieved')
+    ax[3].set_ylim([minsignal, maxsignal])
+    ax[3].set_xlabel('t axis')
+    ax[3].set_ylabel('Vals')
+    ax[3].legend()
+    plt.subplots_adjust(hspace=0.4)
+    plt.savefig('signal-analysis.png', bbox_inches='tight', dpi=300)
 
 
-plt.plot(range(len(final_array)), final_array)
-plt.show()
+def plot_data(new, old):
+    fig = plt.figure(figsize=(10, 7), dpi=300)
+    plt.plot(range(len(data)), old, label='yolo method')
+    plt.plot(range(len(new_data)), new, label='yolo1 method')
+    plt.xlabel('input')
+    plt.ylabel('output')
+    plt.legend()
+    fig.tight_layout()
+    fig.savefig('output.png')
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('-i', metavar='i', dest='input_path', type=str, help='input')
+    parser.add_argument('-o', metavar='o', dest='output_path', type=str, help='output')
+    parser.add_argument('-v', dest='verbose', type=bool, default=False, help='verbose')
+
+    args = parser.parse_args()
+    input_path = args.input_path
+    output_path = args.output_path
+
+    try:
+        os.mkfifo(input_path)
+        if args.verbose:
+            print("fifo not found: created")
+    except OSError as e:
+        if args.verbose:
+            print("Fifo exists?")
+    if args.verbose:
+        print("yes")
+    fifo = os.open(input_path, os.O_RDONLY)
+    r = os.fdopen(fifo, 'r')
+
+    data = bytearray([])
+    if args.verbose:
+        print("reading")
+    while len(data) < 4000:
+        read_data = os.read(fifo, 1)
+        if read_data:
+            data += read_data
+
+    binary_content_data = list(data)
+    new_data = bytearray(process_data(binary_content_data))
+    # plot_data(data, new_data)
+
+    fifo = os.open(output_path, os.O_WRONLY)
+    os.write(fifo, new_data)
+    os.close(fifo)
+
