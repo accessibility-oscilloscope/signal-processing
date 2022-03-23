@@ -8,7 +8,7 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 
-SIGNAL_LENGTH: int = 4000
+SIGNAL_LENGTH: int = 480
 SIGNAL_AMPLITUDE: int = 255
 
 

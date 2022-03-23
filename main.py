@@ -3,6 +3,8 @@ import os
 import numpy as np
 import argparse
 
+DATA_LENGTH = 480
+
 
 def normalize_signal(signal):
     sig_maxval = np.max(signal)
@@ -193,37 +195,29 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('-i', metavar='i', dest='input_path', type=str, help='input')
     parser.add_argument('-o', metavar='o', dest='output_path', type=str, help='output')
-    parser.add_argument('-v', dest='verbose', type=bool, default=False, help='verbose')
+    parser.add_argument('-v', dest='verbose', type=bool, default=False, help='verbose',
+                        action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
     input_path = args.input_path
     output_path = args.output_path
-
-    try:
-        os.mkfifo(input_path)
-        if args.verbose:
-            print("fifo not found: created")
-    except OSError as e:
-        if args.verbose:
-            print("Fifo exists?")
+    verbose = args.output_path
     if args.verbose:
-        print("yes")
-    fifo = os.open(input_path, os.O_RDONLY)
-    r = os.fdopen(fifo, 'r')
+        print("starting")
+    input_fifo = os.open(input_path, os.O_RDONLY)
+    output_fifo = os.open(output_path, os.O_WRONLY)
 
-    data = bytearray([])
     if args.verbose:
         print("reading")
-    while len(data) < 4000:
-        read_data = os.read(fifo, 1)
-        if read_data:
-            data += read_data
 
-    binary_content_data = list(data)
-    new_data = bytearray(process_data(binary_content_data))
-    # plot_data(data, new_data)
+    binary_content_data = os.read(input_fifo, DATA_LENGTH)
+    input_data = list(binary_content_data)
+    new_data = bytearray(process_data(input_data))
 
-    fifo = os.open(output_path, os.O_WRONLY)
-    os.write(fifo, new_data)
-    os.close(fifo)
-
+    if args.verbose:
+        print("writing")
+    os.write(output_fifo, new_data)
+    if args.verbose:
+        print("written")
+    os.close(input_fifo)
+    os.close(output_fifo)
