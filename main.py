@@ -1,7 +1,6 @@
 import os
 import argparse
 import numpy as np
-import syslog
 # import matplotlib.pyplot as plt
 
 DATA_LENGTH = 480
