@@ -208,11 +208,13 @@ if __name__ == "__main__":
     input_fifo = os.open(input_path, os.O_RDONLY)
     output_fifo = os.open(output_path, os.O_WRONLY)
 
-
     if args.verbose:
         print("reading")
 
     binary_content_data = os.read(input_fifo, DATA_LENGTH)
+    if len(binary_content_data) != DATA_LENGTH:
+        exit(1)
+
     if args.verbose:
         print("read "+str(len(binary_content_data))+" bytes")
     input_data = list(binary_content_data)
