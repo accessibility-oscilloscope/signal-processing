@@ -154,41 +154,41 @@ def filter_to_single_period(test_signal):
     psd_clean = psd * psd_idxs  # zero out all the unnecessary powers
     fhat_clean = psd_idxs * fhat  # used to retrieve the signal
     signal_filtered = np.fft.ifft(fhat_clean)  # inverse fourier transform
-    fig, ax = plt.subplots(4, 1)
-    ax[0].plot(t, signal, color='b', lw=0.5, label='Noisy Signal')
-    ax[0].plot(t, signal_clean, color='r', lw=1, label='Clean Signal')
-    ax[0].set_ylim([minsignal, maxsignal])
-    ax[0].set_xlabel('t axis')
-    ax[0].set_ylabel('Vals')
-    ax[0].legend()
-    ax[1].plot(freq[idxs_half], np.abs(psd[idxs_half]), color='b', lw=0.5, label='PSD noisy')
-    ax[1].set_xlabel('Frequencies in Hz')
-    ax[1].set_ylabel('Amplitude')
-    ax[0].set_ylim([minsignal, maxsignal])
-    ax[1].legend()
-    ax[2].plot(freq[idxs_half], np.abs(psd_clean[idxs_half]), color='r', lw=1, label='PSD clean')
-    ax[2].set_xlabel('Frequencies in Hz')
-    ax[2].set_ylabel('Amplitude')
-    ax[2].set_ylim([min(np.abs(psd_clean[idxs_half])), max(np.abs(psd_clean[idxs_half]))])
-    ax[2].legend()
-    ax[3].plot(t, signal_filtered, color='r', lw=1, label='Clean Signal Retrieved')
-    ax[3].set_ylim([minsignal, maxsignal])
-    ax[3].set_xlabel('t axis')
-    ax[3].set_ylabel('Vals')
-    ax[3].legend()
-    plt.subplots_adjust(hspace=0.4)
-    plt.savefig('signal-analysis.png', bbox_inches='tight', dpi=300)
+    # fig, ax = plt.subplots(4, 1)
+    # ax[0].plot(t, signal, color='b', lw=0.5, label='Noisy Signal')
+    # ax[0].plot(t, signal_clean, color='r', lw=1, label='Clean Signal')
+    # ax[0].set_ylim([minsignal, maxsignal])
+    # ax[0].set_xlabel('t axis')
+    # ax[0].set_ylabel('Vals')
+    # ax[0].legend()
+    # ax[1].plot(freq[idxs_half], np.abs(psd[idxs_half]), color='b', lw=0.5, label='PSD noisy')
+    # ax[1].set_xlabel('Frequencies in Hz')
+    # ax[1].set_ylabel('Amplitude')
+    # ax[0].set_ylim([minsignal, maxsignal])
+    # ax[1].legend()
+    # ax[2].plot(freq[idxs_half], np.abs(psd_clean[idxs_half]), color='r', lw=1, label='PSD clean')
+    # ax[2].set_xlabel('Frequencies in Hz')
+    # ax[2].set_ylabel('Amplitude')
+    # ax[2].set_ylim([min(np.abs(psd_clean[idxs_half])), max(np.abs(psd_clean[idxs_half]))])
+    # ax[2].legend()
+    # ax[3].plot(t, signal_filtered, color='r', lw=1, label='Clean Signal Retrieved')
+    # ax[3].set_ylim([minsignal, maxsignal])
+    # ax[3].set_xlabel('t axis')
+    # ax[3].set_ylabel('Vals')
+    # ax[3].legend()
+    # plt.subplots_adjust(hspace=0.4)
+    # plt.savefig('signal-analysis.png', bbox_inches='tight', dpi=300)
 
 
-def plot_data(new, old):
-    fig = plt.figure(figsize=(10, 7), dpi=300)
-    plt.plot(range(len(old)), old, label='yolo method')
-    plt.plot(range(len(new_data)), new, label='yolo1 method')
-    plt.xlabel('input')
-    plt.ylabel('output')
-    plt.legend()
-    fig.tight_layout()
-    fig.savefig('output.png')
+# def plot_data(new, old):
+#     fig = plt.figure(figsize=(10, 7), dpi=300)
+#     plt.plot(range(len(old)), old, label='yolo method')
+#     plt.plot(range(len(new_data)), new, label='yolo1 method')
+#     plt.xlabel('input')
+#     plt.ylabel('output')
+#     plt.legend()
+#     fig.tight_layout()
+#     fig.savefig('output.png')
 
 
 if __name__ == "__main__":
@@ -207,21 +207,25 @@ if __name__ == "__main__":
     input_fifo = os.open(input_path, os.O_RDONLY)
     output_fifo = os.open(output_path, os.O_WRONLY)
 
-    while True:
-        if args.verbose:
-            print("reading")
+    if args.verbose:
+        print("reading")
 
-        binary_content_data = os.read(input_fifo, DATA_LENGTH)
-        if args.verbose:
-            print("read "+str(len(binary_content_data))+" bytes")
-        input_data = list(binary_content_data)
-        new_data = bytearray(process_data(input_data))
+    binary_content_data = os.read(input_fifo, DATA_LENGTH)
+    if len(binary_content_data) != DATA_LENGTH:
+        exit(1)
 
-        if args.verbose:
-            print("writing")
-        os.write(output_fifo, new_data)
-        if args.verbose:
-            print("wrote "+str(len(new_data))+" bytes")
+    if args.verbose:
+        print("read "+str(len(binary_content_data))+" bytes")
+    input_data = list(binary_content_data)
+    new_data = bytearray(process_data(input_data))
+
+    if args.verbose:
+        print("writing")
+    os.write(output_fifo, new_data)
+    if args.verbose:
+        print("wrote "+str(len(new_data))+" bytes")
 
     os.close(input_fifo)
     os.close(output_fifo)
+
+    exit(0)
