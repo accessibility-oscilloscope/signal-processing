@@ -1,6 +1,7 @@
 import os
 import argparse
 import numpy as np
+import syslog
 # import matplotlib.pyplot as plt
 
 DATA_LENGTH = 480
@@ -207,21 +208,23 @@ if __name__ == "__main__":
     input_fifo = os.open(input_path, os.O_RDONLY)
     output_fifo = os.open(output_path, os.O_WRONLY)
 
-    while True:
-        if args.verbose:
-            print("reading")
 
-        binary_content_data = os.read(input_fifo, DATA_LENGTH)
-        if args.verbose:
-            print("read "+str(len(binary_content_data))+" bytes")
-        input_data = list(binary_content_data)
-        new_data = bytearray(process_data(input_data))
+    if args.verbose:
+        print("reading")
 
-        if args.verbose:
-            print("writing")
-        os.write(output_fifo, new_data)
-        if args.verbose:
-            print("wrote "+str(len(new_data))+" bytes")
+    binary_content_data = os.read(input_fifo, DATA_LENGTH)
+    if args.verbose:
+        print("read "+str(len(binary_content_data))+" bytes")
+    input_data = list(binary_content_data)
+    new_data = bytearray(process_data(input_data))
+
+    if args.verbose:
+        print("writing")
+    os.write(output_fifo, new_data)
+    if args.verbose:
+        print("wrote "+str(len(new_data))+" bytes")
 
     os.close(input_fifo)
     os.close(output_fifo)
+
+    exit(0)
