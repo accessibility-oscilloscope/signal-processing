@@ -207,7 +207,6 @@ if __name__ == "__main__":
     input_fifo = os.open(input_path, os.O_RDONLY)
     output_fifo = os.open(output_path, os.O_WRONLY)
 
-
     while True:
         if args.verbose:
             print("reading")
