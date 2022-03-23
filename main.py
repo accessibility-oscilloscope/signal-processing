@@ -182,7 +182,7 @@ def filter_to_single_period(test_signal):
 
 def plot_data(new, old):
     fig = plt.figure(figsize=(10, 7), dpi=300)
-    plt.plot(range(len(data)), old, label='yolo method')
+    plt.plot(range(len(old)), old, label='yolo method')
     plt.plot(range(len(new_data)), new, label='yolo1 method')
     plt.xlabel('input')
     plt.ylabel('output')
