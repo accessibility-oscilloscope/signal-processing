@@ -1,5 +1,6 @@
 import os
 import argparse
+import syslog
 import numpy as np
 # import matplotlib.pyplot as plt
 
@@ -203,27 +204,30 @@ if __name__ == "__main__":
     output_path = args.output_path
     verbose = args.output_path
     if args.verbose:
-        print("starting")
+        syslog.syslog("starting")
     input_fifo = os.open(input_path, os.O_RDONLY)
     output_fifo = os.open(output_path, os.O_WRONLY)
 
     if args.verbose:
-        print("reading")
+        syslog.syslog("reading")
 
     binary_content_data = os.read(input_fifo, DATA_LENGTH)
     if len(binary_content_data) != DATA_LENGTH:
+        syslog.syslog("Error: data is incorrect length")
         exit(1)
 
     if args.verbose:
-        print("read "+str(len(binary_content_data))+" bytes")
+        syslog.syslog("read "+str(len(binary_content_data))+" bytes")
     input_data = list(binary_content_data)
     new_data = bytearray(process_data(input_data))
 
     if args.verbose:
-        print("writing")
-    os.write(output_fifo, new_data)
+        syslog.syslog("writing")
+    output_length = os.write(output_fifo, new_data)
+    if len(new_data) == output_length:
+        syslog.syslog("Entire buffer not written")
     if args.verbose:
-        print("wrote "+str(len(new_data))+" bytes")
+        syslog.syslog("wrote "+str(len(new_data))+" bytes")
 
     os.close(input_fifo)
     os.close(output_fifo)
