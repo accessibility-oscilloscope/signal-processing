@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
     binary_content_data = os.read(input_fifo, DATA_LENGTH)
     if len(binary_content_data) != DATA_LENGTH:
-        syslog.syslog("Error: data is incorrect length")
+        syslog.syslog("Error: data is incorrect length: "+str(len(binary_content_data)))
         exit(1)
 
     if args.verbose:
@@ -226,7 +226,7 @@ if __name__ == "__main__":
     if args.verbose:
         syslog.syslog("writing")
     output_length = os.write(output_fifo, new_data)
-    if len(new_data) == output_length:
+    if len(new_data) != output_length:
         syslog.syslog("Entire buffer not written")
     if args.verbose:
         syslog.syslog("wrote "+str(len(new_data))+" bytes")
