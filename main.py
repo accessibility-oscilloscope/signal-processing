@@ -207,22 +207,23 @@ if __name__ == "__main__":
     verbose = args.output_path
     if args.verbose:
         syslog.syslog("starting")
-    input_fifo = os.open(input_path, os.O_RDONLY)
-    output_fifo = os.open(output_path, os.O_WRONLY)
 
+
+    input_fifo = os.open(input_path, os.O_RDONLY)
     if args.verbose:
         syslog.syslog("reading")
-
     binary_content_data = os.read(input_fifo, DATA_LENGTH)
     if len(binary_content_data) != DATA_LENGTH:
         syslog.syslog("Error: data is incorrect length: "+str(len(binary_content_data)))
-        exit(1)
+        exit(0)
+    os.close(input_fifo)
 
     if args.verbose:
         syslog.syslog("read "+str(len(binary_content_data))+" bytes")
     input_data = list(binary_content_data)
     new_data = bytearray(process_data(input_data))
 
+    output_fifo = os.open(output_path, os.O_WRONLY)
     if args.verbose:
         syslog.syslog("writing")
     output_length = os.write(output_fifo, new_data)
@@ -230,8 +231,6 @@ if __name__ == "__main__":
         syslog.syslog("Entire buffer not written")
     if args.verbose:
         syslog.syslog("wrote "+str(len(new_data))+" bytes")
-
-    os.close(input_fifo)
     os.close(output_fifo)
 
     exit(0)
