@@ -4,10 +4,8 @@ import os
 import argparse
 import syslog
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-# 65,280
-# DATA_LENGTH = 480 * 136
 INPUT_DATA_LENGTH = 4095
 OUTPUT_DATA_LENGTH = 480
 
