@@ -6,8 +6,8 @@ import syslog
 import numpy as np
 # import matplotlib.pyplot as plt
 
-DATA_LENGTH = 480
-
+INPUT_DATA_LENGTH = 4095
+OUTPUT_DATA_LENGTH = 480
 
 def normalize_signal(signal):
     sig_maxval = np.max(signal)
@@ -24,8 +24,9 @@ def average(array):
 
 def removed_anomalous_indexes(test_signal, anomalous_indexes):
     sorted_index = sorted(anomalous_indexes, reverse=True)
-    for i in range(1, len(sorted_index) - 1):
-        test_signal[i] = int(average(test_signal[i - 1:i + 2]))
+    array_len = len(sorted_index)
+    for i in range(1, array_len - 1):
+        test_signal[i] = np.uint8(average(test_signal[i - 1:i + 2]))
     return test_signal
 
 
@@ -37,16 +38,16 @@ def calculate_average_step(signal, threshold=3):
     """
 
     # determine all the steps
-    steps = []
-    for i in range(0, len(signal) - 1):
-        steps.append(abs(signal[i] - signal[i + 1]))
+
+    # for i in range(0, len(signal) - 1):
+    steps = np.absolute(np.diff(signal))
 
     # determine the steps clusters
     clusters = []
     skip_indexes = []
     cluster_index = 0
-
-    for i in range(len(steps)):
+    step_len = len(steps)
+    for i in range(step_len):
         if i in skip_indexes:
             continue
 
@@ -59,7 +60,7 @@ def calculate_average_step(signal, threshold=3):
         clusters[cluster_index].append(steps[i])
 
         # try to match elements from the rest of the array
-        for j in range(i + 1, len(steps)):
+        for j in range(i + 1, step_len):
 
             if not (cluster_lower <= steps[j] <= cluster_upper):
                 continue
@@ -93,13 +94,16 @@ def detect_anomalous_values(array, regular_step, threshold=20):
     step_upper = regular_step + (regular_step / 100) * threshold
 
     # detection will be forward from i (hence 3 elements must be available for the d)
-    for i in range(0, len(array) - 2):
+    absolute_diff = np.absolute(np.diff(array))
+
+    array_len = len(array)
+    for i in range(0, array_len - 2):
         a = array[i]
         b = array[i + 1]
         c = array[i + 2]
 
-        first_step = abs(a - b)
-        second_step = abs(b - c)
+        first_step = absolute_diff[i]
+        second_step = absolute_diff[i+1]
 
         first_belonging = step_lower <= first_step <= step_upper
         second_belonging = step_lower <= second_step <= step_upper
@@ -124,74 +128,40 @@ def detect_anomalous_values(array, regular_step, threshold=20):
 
     return sorted(set(anomalous_indexes))  # return unique indexes
 
+def downsample(array, output_size):
+    # Example input: [1, 2, 3, 4], 2
+    # Example output: [1.5, 3.5]
 
-def process_data(input_data):
-    test_signal = [x for x in input_data]
+    div_amt = len(array) // output_size
+    sub_size = len(array) // div_amt
 
-    average_step = calculate_average_step(test_signal)
-    anomalous_indexes = detect_anomalous_values(test_signal, average_step)
-    test_signal = removed_anomalous_indexes(test_signal, anomalous_indexes)
+    next_array = np.zeros(sub_size, dtype=np.uint8)
+    for x in range(sub_size):
+        next_array[x] = sum(array[x*div_amt: (x+1) * div_amt]) // div_amt
+    return next_array
 
-    # filter_to_single_period(test_signal)
+
+def process_data(signal):
+    average_step = calculate_average_step(signal)
+    anomalous_indexes = detect_anomalous_values(signal, average_step)
+    test_signal = removed_anomalous_indexes(signal, anomalous_indexes)
+    test_signal = downsample(test_signal, OUTPUT_DATA_LENGTH)
     return test_signal
 
 
-def filter_to_single_period(test_signal):
-    dt = 1
-    signal = np.array(test_signal) / 255
-    # dt = 0.001
-    # t = np.arange(0, 1, dt)
-    # signal = np.sin(2 * np.pi * 50 * t) + np.sin(2 * np.pi * 120 * t)  # composite signal
-    t = range(len(signal))
-    signal_clean = signal
-    minsignal, maxsignal = signal.min(), signal.max()
-    ## Compute Fourier Transform
-    n = len(t)
-    fhat = np.fft.fft(signal, n)  # computes the fft
-    psd = fhat * np.conj(fhat) / n
-    freq = (1 / (dt * n)) * np.arange(n)  # frequency array
-    idxs_half = np.arange(1, np.floor(n / 2), dtype=np.int32)  # first half index
-    ## Filter out noise
-    threshold = 100
-    psd_idxs = psd > threshold  # array of 0 and 1
-    psd_clean = psd * psd_idxs  # zero out all the unnecessary powers
-    fhat_clean = psd_idxs * fhat  # used to retrieve the signal
-    signal_filtered = np.fft.ifft(fhat_clean)  # inverse fourier transform
-    # fig, ax = plt.subplots(4, 1)
-    # ax[0].plot(t, signal, color='b', lw=0.5, label='Noisy Signal')
-    # ax[0].plot(t, signal_clean, color='r', lw=1, label='Clean Signal')
-    # ax[0].set_ylim([minsignal, maxsignal])
-    # ax[0].set_xlabel('t axis')
-    # ax[0].set_ylabel('Vals')
-    # ax[0].legend()
-    # ax[1].plot(freq[idxs_half], np.abs(psd[idxs_half]), color='b', lw=0.5, label='PSD noisy')
-    # ax[1].set_xlabel('Frequencies in Hz')
-    # ax[1].set_ylabel('Amplitude')
-    # ax[0].set_ylim([minsignal, maxsignal])
-    # ax[1].legend()
-    # ax[2].plot(freq[idxs_half], np.abs(psd_clean[idxs_half]), color='r', lw=1, label='PSD clean')
-    # ax[2].set_xlabel('Frequencies in Hz')
-    # ax[2].set_ylabel('Amplitude')
-    # ax[2].set_ylim([min(np.abs(psd_clean[idxs_half])), max(np.abs(psd_clean[idxs_half]))])
-    # ax[2].legend()
-    # ax[3].plot(t, signal_filtered, color='r', lw=1, label='Clean Signal Retrieved')
-    # ax[3].set_ylim([minsignal, maxsignal])
-    # ax[3].set_xlabel('t axis')
-    # ax[3].set_ylabel('Vals')
-    # ax[3].legend()
-    # plt.subplots_adjust(hspace=0.4)
-    # plt.savefig('signal-analysis.png', bbox_inches='tight', dpi=300)
-
-
 # def plot_data(new, old):
-#     fig = plt.figure(figsize=(10, 7), dpi=300)
-#     plt.plot(range(len(old)), old, label='yolo method')
-#     plt.plot(range(len(new_data)), new, label='yolo1 method')
-#     plt.xlabel('input')
-#     plt.ylabel('output')
-#     plt.legend()
+#     fig, ax = plt.subplots(2, 1, figsize=(20, 14))
+#
+#     ax[0].plot(range(len(old)), old, label='old')
+#     ax[0].set_xlabel('Time')
+#     ax[0].set_ylabel('Voltage')
+#
+#     ax[1].plot(range(len(new_data)), new, label='filtered')
+#     ax[1].set_xlabel('Time')
+#     ax[1].set_ylabel('Voltage')
+#
 #     fig.tight_layout()
-#     fig.savefig('output.png')
+#     fig.savefig('output.png', dpi=600)
 
 
 if __name__ == "__main__":
@@ -213,19 +183,22 @@ if __name__ == "__main__":
     if args.verbose:
         syslog.syslog("reading")
 
-    binary_content_data = os.read(input_fifo, DATA_LENGTH)
-    if len(binary_content_data) != DATA_LENGTH:
+    binary_content_data = os.read(input_fifo, INPUT_DATA_LENGTH)
+    if len(binary_content_data) != INPUT_DATA_LENGTH:
         syslog.syslog("Error: data is incorrect length: "+str(len(binary_content_data)))
         exit(1)
 
     if args.verbose:
         syslog.syslog("read "+str(len(binary_content_data))+" bytes")
-    input_data = list(binary_content_data)
+
+    input_data = np.frombuffer(binary_content_data, dtype=np.uint8).copy()
+    syslog.syslog(str(input_data))
     new_data = bytearray(process_data(input_data))
 
+    # plot_data(new_data, input_data)
     if args.verbose:
         syslog.syslog("writing")
-    output_length = os.write(output_fifo, new_data)
+    output_length = os.write(output_fifo, new_data[0:OUTPUT_DATA_LENGTH])
     if len(new_data) != output_length:
         syslog.syslog("Entire buffer not written")
     if args.verbose:
