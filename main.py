@@ -4,7 +4,7 @@ import os
 import argparse
 import syslog
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 INPUT_DATA_LENGTH = 4095
 OUTPUT_DATA_LENGTH = 480
@@ -141,27 +141,34 @@ def downsample(array, output_size):
     return next_array
 
 
+def scale_range(array):
+    array += -(np.min(array))
+    array *= 255 // np.max(array)
+    return array
+
+
 def process_data(signal):
     average_step = calculate_average_step(signal)
     anomalous_indexes = detect_anomalous_values(signal, average_step)
     test_signal = removed_anomalous_indexes(signal, anomalous_indexes)
     test_signal = downsample(test_signal, OUTPUT_DATA_LENGTH)
+    test_signal = scale_range(test_signal)
     return test_signal
 
 
-# def plot_data(new, old):
-#     fig, ax = plt.subplots(2, 1, figsize=(20, 14))
-#
-#     ax[0].plot(range(len(old)), old, label='old')
-#     ax[0].set_xlabel('Time')
-#     ax[0].set_ylabel('Voltage')
-#
-#     ax[1].plot(range(len(new_data)), new, label='filtered')
-#     ax[1].set_xlabel('Time')
-#     ax[1].set_ylabel('Voltage')
-#
-#     fig.tight_layout()
-#     fig.savefig('output.png', dpi=600)
+def plot_data(new, old):
+    fig, ax = plt.subplots(2, 1, figsize=(20, 14))
+
+    ax[0].plot(range(len(old)), old, label='old')
+    ax[0].set_xlabel('Time')
+    ax[0].set_ylabel('Voltage')
+
+    ax[1].plot(range(len(new_data)), new, label='filtered')
+    ax[1].set_xlabel('Time')
+    ax[1].set_ylabel('Voltage')
+
+    fig.tight_layout()
+    fig.savefig('output.png', dpi=600)
 
 
 if __name__ == "__main__":
@@ -195,7 +202,7 @@ if __name__ == "__main__":
     syslog.syslog(str(input_data))
     new_data = bytearray(process_data(input_data))
 
-    # plot_data(new_data, input_data)
+    plot_data(new_data, input_data)
     if args.verbose:
         syslog.syslog("writing")
     output_length = os.write(output_fifo, new_data[0:OUTPUT_DATA_LENGTH])
