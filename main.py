@@ -141,11 +141,18 @@ def downsample(array, output_size):
     return next_array
 
 
+def scale_range(array):
+    array += -(np.min(array))
+    array *= 255 // np.max(array)
+    return array
+
+
 def process_data(signal):
     average_step = calculate_average_step(signal)
     anomalous_indexes = detect_anomalous_values(signal, average_step)
     test_signal = removed_anomalous_indexes(signal, anomalous_indexes)
     test_signal = downsample(test_signal, OUTPUT_DATA_LENGTH)
+    test_signal = scale_range(test_signal)
     return test_signal
 
 
