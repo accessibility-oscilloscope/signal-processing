@@ -142,8 +142,12 @@ def downsample(array, output_size):
 
 
 def scale_range(array):
+    str_ = np.array_str(np.array([np.max(array), np.min(array)]))
+    syslog.syslog("Original range: "+str_)
     array += -(np.min(array))
-    array *= 255 // np.max(array)
+    array = (array * (255 / np.max(array))).astype(np.uint8)
+    str_ = np.array_str(np.array([np.max(array), np.min(array)]))
+    syslog.syslog("Scaled range: "+str_)
     return array
 
 
